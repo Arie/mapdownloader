@@ -133,9 +133,9 @@ public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
 	ReadPackString(hDLPack, map, sizeof(map));
 	ReadPackString(hDLPack, targetPath, sizeof(targetPath));
 	CloseHandle(hDLPack);
-	CloseHandle(hndl);
 
 	if (code != CURLE_OK) {
+	    CloseHandle(hndl);
 		PrintToChatAll("Error downloading map %s", map);
 		decl String:sError[256];
 		curl_easy_strerror(code, sError, sizeof(sError));
@@ -143,14 +143,26 @@ public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
 		PrintToChatAll("cURL error code: %d", code);
 		DeleteFile(targetPath);
 	} else {
-		//PrintToChatAll("map size(%s): %d", targetPath, FileSize(targetPath));
-		if (FileSize(targetPath) < 1024) {
-			PrintToChatAll("Map file to small, discarding");
+    	new status_code;
+    	curl_easy_getinfo_int(hndl, CURLINFO_RESPONSE_CODE, status_code);
+        CloseHandle(hndl);
+
+        if (status_code == 200) {
+    		if (FileSize(targetPath) < 1024) {
+    			PrintToChatAll("Map file to small, discarding");
+    			DeleteFile(targetPath);
+    			return;
+    		}
+    		PrintToChatAll("Successfully downloaded map %s", map);
+    		changeLevel(map);
+		} else if (status_code == 404) {
+			PrintToChatAll("Map %s not found", map);
 			DeleteFile(targetPath);
-			return;
+		} else {
+		    DeleteFile(targetPath);
+			PrintToChatAll("Error downloading map %s", map);
+			PrintToChatAll("HTTP error: %d", status_code);
 		}
-		PrintToChatAll("Successfully downloaded map %s", map);
-		changeLevel(map);
 	}
 	return;
 }
