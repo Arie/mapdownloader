@@ -120,6 +120,7 @@ public DownloadMapUrl(String:map[128], String:fullUrl[512], String:targetPath[12
 
 	curl_easy_setopt_handle(curl, CURLOPT_WRITEDATA, output_file);
 	curl_easy_setopt_string(curl, CURLOPT_URL, fullUrl);
+	curl_easy_setopt_int(curl, CURLOPT_FOLLOWLOCATION, 1);
 	curl_easy_perform_thread(curl, onComplete, hDLPack);
 }
 
