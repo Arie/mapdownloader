@@ -1,46 +1,66 @@
 {
   "nodes": {
+    "flakelight": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1761420461,
+        "narHash": "sha256-gXjG2PzDOcORQkPMybYqA2fnPWYAeKWb17elDI6q/Fg=",
+        "owner": "nix-community",
+        "repo": "flakelight",
+        "rev": "82054a2d93c13188997e30b0697f0708f16d4752",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "flakelight",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1699646590,
-        "narHash": "sha256-f81xS0qN6H1ULTyArpZgdjsly4FY0BnvPXdmSb7hq+o=",
+        "lastModified": 1761516808,
+        "narHash": "sha256-4ZdXt+vhA+qyE/TNCp16v2sBJyr0pteKqgiLTXxM4eU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1d55765508b8316798429875712dc1ef5e62a2fa",
+        "rev": "2ab7841f414ccdefea889707b2d5e4b32cda9729",
         "type": "github"
       },
       "original": {
         "id": "nixpkgs",
-        "ref": "release-23.05",
+        "ref": "release-25.05",
         "type": "indirect"
       }
     },
     "root": {
       "inputs": {
+        "flakelight": "flakelight",
         "nixpkgs": "nixpkgs",
         "spire": "spire",
-        "utils": "utils_2"
+        "utils": "utils"
       }
     },
     "spire": {
       "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "utils": "utils"
+        "flakelight": [
+          "flakelight"
+        ]
       },
       "locked": {
-        "lastModified": 1699654291,
-        "narHash": "sha256-+hzjb53GoBqtba9uwBwcEbaDeztjmiQGSDkWndDDduY=",
-        "owner": "spiretf",
-        "repo": "nix",
-        "rev": "2c9023b27e01d6119688792fee7707ba7854c1ad",
-        "type": "github"
+        "lastModified": 1750433696,
+        "narHash": "sha256-UVtSgRUzgHKUWcjsVQQM/6J8x35ly/7+P9/xbXeGLtc=",
+        "ref": "refs/heads/main",
+        "rev": "f3b763c6b9c0c31924ac2ba1b6541c2b08ed9852",
+        "revCount": 33,
+        "type": "git",
+        "url": "https://codeberg.org/spire/nix"
       },
       "original": {
-        "owner": "spiretf",
-        "repo": "nix",
-        "type": "github"
+        "type": "git",
+        "url": "https://codeberg.org/spire/nix"
       }
     },
     "systems": {
@@ -58,42 +78,9 @@
         "type": "github"
       }
     },
-    "systems_2": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
-      }
-    },
     "utils": {
       "inputs": {
         "systems": "systems"
-      },
-      "locked": {
-        "lastModified": 1687709756,
-        "narHash": "sha256-Y5wKlQSkgEK2weWdOu4J3riRd+kV/VCgHsqLNTTWQ/0=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "dbabf0ca0c0c4bce6ea5eaf65af5cb694d2082c7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
-    "utils_2": {
-      "inputs": {
-        "systems": "systems_2"
       },
       "locked": {
         "lastModified": 1694529238,

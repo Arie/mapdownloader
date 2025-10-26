@@ -1,26 +1,26 @@
 {
   inputs = {
     utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "nixpkgs/release-23.05";
-    spire.url = "github:spiretf/nix";
-    spire.inputs.nixpkgs.follows = "nixpkgs";
-    spire.inputs.flake-utils.follows = "utils";
+    nixpkgs.url = "nixpkgs/release-25.05";
+    flakelight.url = "github:nix-community/flakelight";
+    spire.url = "git+https://codeberg.org/spire/nix";
+    flakelight.inputs.nixpkgs.follows = "nixpkgs";
+    spire.inputs.flakelight.follows = "flakelight";
   };
 
   outputs = {
-    self,
     nixpkgs,
     utils,
     spire,
+    ...
   }:
-    utils.lib.eachSystem spire.systems (system: let
+    utils.lib.eachSystem ["x86_64-linux" "i686-linux"] (system: let
       overlays = [spire.overlays.default];
       pkgs = (import nixpkgs) {
         inherit system overlays;
       };
-      inherit (pkgs) lib;
       spEnv = pkgs.sourcepawn.buildEnv (with pkgs.sourcepawn.includes; [sourcemod curl]);
-    in rec {
+    in {
       packages = rec {
         mapdownloader = pkgs.buildSourcePawnScript {
           name = "mapdownloader";
@@ -30,7 +30,7 @@
         default = mapdownloader;
       };
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [spEnv];
+        nativeBuildInputs = [spEnv];
       };
     });
 }
