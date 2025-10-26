@@ -30,7 +30,12 @@ new Handle:g_hCvarUrl = INVALID_HANDLE;
 public OnPluginStart() {
 	g_hCvarUrl = CreateConVar("sm_map_download_base", "https://fastdl.serveme.tf/maps", "map download url", FCVAR_PROTECTED);
 
+	RegAdminCmd("sm_map", HandleSmMapAction, ADMFLAG_CHANGEMAP, "Change map");
 	RegServerCmd("changelevel", HandleChangeLevelAction);
+}
+
+public Action:HandleSmMapAction(_client, args) {
+    return HandleChangeLevelAction(args);
 }
 
 public Action:HandleChangeLevelAction(args) {
