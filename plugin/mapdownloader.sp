@@ -30,53 +30,50 @@ new Handle:g_hCvarUrl = INVALID_HANDLE;
 public OnPluginStart() {
 	g_hCvarUrl = CreateConVar("sm_map_download_base", "https://fastdl.serveme.tf/maps", "map download url", FCVAR_PROTECTED);
 
-	RegAdminCmd("sm_map", HandleSmMapAction, ADMFLAG_CHANGEMAP, "Change map");
+	RegAdminCmd("sm_map", HandleSmMapAction, ADMFLAG_CHANGEMAP, "sm_map <map>");
 	RegServerCmd("changelevel", HandleChangeLevelAction);
 }
 
 public Action:HandleSmMapAction(_client, args) {
+    if (args < 1) {
+        return Plugin_Handled;
+    }
+
     return HandleChangeLevelAction(args);
 }
 
 public Action:HandleChangeLevelAction(args) {
-	new String:part[128];
-	new String:arg[128];
-	int argpos = 0;
+	new String:arg[PLATFORM_MAX_PATH];
+	char displayName[PLATFORM_MAX_PATH];
 
-	for (int i = 1; i <= args; i++) {
-		GetCmdArg(i, part, sizeof(part));
-		strcopy(arg[argpos], sizeof(arg) - argpos, part);
-		argpos += strlen(part);
-	}
+	GetCmdArg(1, arg, sizeof(arg));
 
 	if (arg[strlen(arg) - 1] == ':') {
 		PrintToChatAll("Invalid input, to input urls, replace '://' with ':/'");
 		return Plugin_Handled;
 	}
 
-	PrintToServer("Changing to: %s", arg);
-
 	if (StrContains(arg, ":/") > 0) {
 		ChangeLevelUrl(arg);
 		return Plugin_Handled;
 	}
 
-	decl String:path[128];
-	Format(path, sizeof(path), "maps/%s.bsp", arg);
 
-	if (FileExists(path)) {
+	if (FindMap(arg, displayName, sizeof(displayName)) != FindMap_NotFound) {
 		return Plugin_Continue;
 	} else {
-		PrintToChatAll("Map %s not found, trying to download", path);
+	    decl String:path[PLATFORM_MAX_PATH];
+	    Format(path, sizeof(path), "maps/%s.bsp", arg);
+		PrintToChatAll("Map %s not found, trying to download", arg);
 		DownloadMap(arg, path);
 		return Plugin_Handled;
 	}
 }
 
-public ChangeLevelUrl(String:url[128]) {
-	decl String:path[128];
-	decl String:mapFull[128];
-	decl String:map[128];
+public ChangeLevelUrl(String:url[PLATFORM_MAX_PATH]) {
+	decl String:path[PLATFORM_MAX_PATH];
+	decl String:mapFull[PLATFORM_MAX_PATH];
+	decl String:map[PLATFORM_MAX_PATH];
 	decl String:fullUrl[512];
 	strcopy(fullUrl, sizeof(fullUrl), url);
 
@@ -103,15 +100,15 @@ public ChangeLevelUrl(String:url[128]) {
 	DownloadMapUrl(map, fullUrl, path);
 }
 
-public DownloadMap(String:map[128], String:targetPath[128]) {
+public DownloadMap(String:map[PLATFORM_MAX_PATH], String:targetPath[PLATFORM_MAX_PATH]) {
 	decl String:fullUrl[512];
-	decl String:BaseUrl[128];
+	decl String:BaseUrl[PLATFORM_MAX_PATH];
 	GetConVarString(g_hCvarUrl, BaseUrl, sizeof(BaseUrl));
 	Format(fullUrl, sizeof(fullUrl), "%s/%s.bsp", BaseUrl, map);
 	DownloadMapUrl(map, fullUrl, targetPath);
 }
 
-public DownloadMapUrl(String:map[128], String:fullUrl[512], String:targetPath[128]) {
+public DownloadMapUrl(String:map[PLATFORM_MAX_PATH], String:fullUrl[512], String:targetPath[PLATFORM_MAX_PATH]) {
 	new Handle:curl = curl_easy_init();
 	new Handle:output_file = curl_OpenFile(targetPath, "wb");
 	CURL_DEFAULT_OPT(curl);
@@ -130,8 +127,8 @@ public DownloadMapUrl(String:map[128], String:fullUrl[512], String:targetPath[12
 }
 
 public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
-	decl String:map[128];
-	decl String:targetPath[128];
+	decl String:map[PLATFORM_MAX_PATH];
+	decl String:targetPath[PLATFORM_MAX_PATH];
 
 	ResetPack(hDLPack);
 	CloseHandle(Handle:ReadPackCell(hDLPack)); // output_file
@@ -159,7 +156,7 @@ public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
     			return;
     		}
     		PrintToChatAll("Successfully downloaded map %s", map);
-    		changeLevel(map);
+    		ForceChangeLevel(map, "changelevel");
 		} else if (status_code == 404) {
 			PrintToChatAll("Map %s not found", map);
 			DeleteFile(targetPath);
@@ -170,10 +167,4 @@ public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
 		}
 	}
 	return;
-}
-
-public changeLevel(String:map[128]) {
-	decl String:command[512];
-	Format(command, sizeof(command), "changelevel %s", map);
-	ServerCommand(command, sizeof(command));
 }
