@@ -28,6 +28,7 @@ new CURL_Default_opt[][2] = {
 #define TEMP_PREFIX ".mapdownloader"
 
 new Handle:g_hCvarUrl = INVALID_HANDLE;
+new Handle:g_hDownloads = INVALID_HANDLE;
 
 public OnPluginStart() {
 	g_hCvarUrl = CreateConVar("sm_map_download_base", "https://fastdl.serveme.tf/maps", "map download url", FCVAR_PROTECTED);
@@ -35,6 +36,7 @@ public OnPluginStart() {
 	RegAdminCmd("sm_map", HandleSmMapAction, ADMFLAG_CHANGEMAP, "sm_map <map>");
 	RegServerCmd("changelevel", HandleChangeLevelAction);
 
+	g_hDownloads = CreateTrie();
 	DeleteStaleTempFiles();
 }
 
@@ -86,6 +88,8 @@ public Action:HandleChangeLevelAction(args) {
 
 	if (FindMap(arg, displayName, sizeof(displayName)) != FindMap_NotFound) {
 		return Plugin_Continue;
+	} else if (AnnounceDownloadInProgress(arg)) {
+		return Plugin_Handled;
 	} else {
 	    decl String:path[PLATFORM_MAX_PATH];
 	    Format(path, sizeof(path), "maps/%s.bsp", arg);
@@ -118,11 +122,25 @@ public ChangeLevelUrl(String:url[PLATFORM_MAX_PATH]) {
 		SplitString(mapFull, ".", map, sizeof(map));
 	}
 
+	if (AnnounceDownloadInProgress(map)) {
+		return;
+	}
+
 	Format(path, sizeof(path), "maps/%s.bsp", map);
 
 	PrintToServer("Saving %s to %s", fullUrl, path);
 
 	DownloadMapUrl(map, fullUrl, path);
+}
+
+public bool:AnnounceDownloadInProgress(const String:map[]) {
+	decl String:tempPath[PLATFORM_MAX_PATH];
+	if (!GetTrieString(g_hDownloads, map, tempPath, sizeof(tempPath))) {
+		return false;
+	}
+
+	PrintToChatAll("Still downloading %s, %d MB so far", map, FileSize(tempPath) / (1024 * 1024));
+	return true;
 }
 
 public DownloadMap(String:map[PLATFORM_MAX_PATH], String:targetPath[PLATFORM_MAX_PATH]) {
@@ -142,6 +160,7 @@ public DownloadMapUrl(String:map[PLATFORM_MAX_PATH], String:fullUrl[512], String
 		PrintToChatAll("Error downloading map %s: can't write to the maps directory", map);
 		return;
 	}
+	SetTrieString(g_hDownloads, map, tempPath);
 
 	new Handle:curl = curl_easy_init();
 	CURL_DEFAULT_OPT(curl);
@@ -171,6 +190,7 @@ public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
 	ReadPackString(hDLPack, targetPath, sizeof(targetPath));
 	ReadPackString(hDLPack, tempPath, sizeof(tempPath));
 	CloseHandle(hDLPack);
+	RemoveFromTrie(g_hDownloads, map);
 
 	if (code != CURLE_OK) {
 		CloseHandle(hndl);
