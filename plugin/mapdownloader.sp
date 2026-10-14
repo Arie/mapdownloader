@@ -25,6 +25,8 @@ new CURL_Default_opt[][2] = {
 
 #define CURL_DEFAULT_OPT(%1) curl_easy_setopt_int_array(%1, CURL_Default_opt, sizeof(CURL_Default_opt))
 
+#define TEMP_PREFIX ".mapdownloader"
+
 new Handle:g_hCvarUrl = INVALID_HANDLE;
 
 public OnPluginStart() {
@@ -32,6 +34,29 @@ public OnPluginStart() {
 
 	RegAdminCmd("sm_map", HandleSmMapAction, ADMFLAG_CHANGEMAP, "sm_map <map>");
 	RegServerCmd("changelevel", HandleChangeLevelAction);
+
+	DeleteStaleTempFiles();
+}
+
+public DeleteStaleTempFiles() {
+	decl String:prefix[64];
+	Format(prefix, sizeof(prefix), "%s_%d_", TEMP_PREFIX, GetConVarInt(FindConVar("hostport")));
+
+	new Handle:dir = OpenDirectory("maps");
+	if (dir == INVALID_HANDLE) {
+		return;
+	}
+
+	decl String:name[PLATFORM_MAX_PATH];
+	decl String:path[PLATFORM_MAX_PATH];
+	new FileType:type;
+	while (ReadDirEntry(dir, name, sizeof(name), type)) {
+		if (type == FileType_File && StrContains(name, prefix) == 0) {
+			Format(path, sizeof(path), "maps/%s", name);
+			DeleteFile(path);
+		}
+	}
+	CloseHandle(dir);
 }
 
 public Action:HandleSmMapAction(_client, args) {
@@ -109,8 +134,16 @@ public DownloadMap(String:map[PLATFORM_MAX_PATH], String:targetPath[PLATFORM_MAX
 }
 
 public DownloadMapUrl(String:map[PLATFORM_MAX_PATH], String:fullUrl[512], String:targetPath[PLATFORM_MAX_PATH]) {
+	decl String:tempPath[PLATFORM_MAX_PATH];
+	Format(tempPath, sizeof(tempPath), "maps/%s_%d_%08x.bsp.part", TEMP_PREFIX, GetConVarInt(FindConVar("hostport")), GetURandomInt());
+
+	new Handle:output_file = curl_OpenFile(tempPath, "wb");
+	if (output_file == INVALID_HANDLE) {
+		PrintToChatAll("Error downloading map %s: can't write to the maps directory", map);
+		return;
+	}
+
 	new Handle:curl = curl_easy_init();
-	new Handle:output_file = curl_OpenFile(targetPath, "wb");
 	CURL_DEFAULT_OPT(curl);
 
 	PrintToChatAll("Trying to download %s from %s", map, fullUrl);
@@ -119,6 +152,7 @@ public DownloadMapUrl(String:map[PLATFORM_MAX_PATH], String:fullUrl[512], String
 	WritePackCell(hDLPack, _:output_file);
 	WritePackString(hDLPack, map);
 	WritePackString(hDLPack, targetPath);
+	WritePackString(hDLPack, tempPath);
 
 	curl_easy_setopt_handle(curl, CURLOPT_WRITEDATA, output_file);
 	curl_easy_setopt_string(curl, CURLOPT_URL, fullUrl);
@@ -129,42 +163,54 @@ public DownloadMapUrl(String:map[PLATFORM_MAX_PATH], String:fullUrl[512], String
 public onComplete(Handle:hndl, CURLcode:code, any hDLPack) {
 	decl String:map[PLATFORM_MAX_PATH];
 	decl String:targetPath[PLATFORM_MAX_PATH];
+	decl String:tempPath[PLATFORM_MAX_PATH];
 
 	ResetPack(hDLPack);
 	CloseHandle(Handle:ReadPackCell(hDLPack)); // output_file
 	ReadPackString(hDLPack, map, sizeof(map));
 	ReadPackString(hDLPack, targetPath, sizeof(targetPath));
+	ReadPackString(hDLPack, tempPath, sizeof(tempPath));
 	CloseHandle(hDLPack);
 
 	if (code != CURLE_OK) {
-	    CloseHandle(hndl);
+		CloseHandle(hndl);
 		PrintToChatAll("Error downloading map %s", map);
 		decl String:sError[256];
 		curl_easy_strerror(code, sError, sizeof(sError));
 		PrintToChatAll("cURL error: %s", sError);
 		PrintToChatAll("cURL error code: %d", code);
-		DeleteFile(targetPath);
-	} else {
-    	new status_code;
-    	curl_easy_getinfo_int(hndl, CURLINFO_RESPONSE_CODE, status_code);
-        CloseHandle(hndl);
-
-        if (status_code == 200) {
-    		if (FileSize(targetPath) < 1024) {
-    			PrintToChatAll("Map file to small, discarding");
-    			DeleteFile(targetPath);
-    			return;
-    		}
-    		PrintToChatAll("Successfully downloaded map %s", map);
-    		ForceChangeLevel(map, "changelevel");
-		} else if (status_code == 404) {
-			PrintToChatAll("Map %s not found", map);
-			DeleteFile(targetPath);
-		} else {
-		    DeleteFile(targetPath);
-			PrintToChatAll("Error downloading map %s", map);
-			PrintToChatAll("HTTP error: %d", status_code);
-		}
+		DeleteFile(tempPath);
+		return;
 	}
-	return;
+
+	new status_code;
+	curl_easy_getinfo_int(hndl, CURLINFO_RESPONSE_CODE, status_code);
+	CloseHandle(hndl);
+
+	if (status_code == 404) {
+		PrintToChatAll("Map %s not found", map);
+		DeleteFile(tempPath);
+		return;
+	}
+	if (status_code != 200) {
+		PrintToChatAll("Error downloading map %s", map);
+		PrintToChatAll("HTTP error: %d", status_code);
+		DeleteFile(tempPath);
+		return;
+	}
+
+	if (FileSize(tempPath) < 1024) {
+		PrintToChatAll("Map file too small, discarding");
+		DeleteFile(tempPath);
+		return;
+	}
+
+	if (!RenameFile(targetPath, tempPath)) {
+		PrintToChatAll("Error downloading map %s: can't move it into the maps directory", map);
+		DeleteFile(tempPath);
+		return;
+	}
+
+	PrintToChatAll("Successfully downloaded map %s", map);
+	ForceChangeLevel(map, "changelevel");
 }
