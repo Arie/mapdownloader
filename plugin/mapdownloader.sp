@@ -8,7 +8,7 @@ public Plugin:myinfo =
 	name = "map downloader",
 	author = "Icewind",
 	description = "Automatically download missing maps",
-	version = "0.2",
+	version = "0.3",
 	url = "https://spire.tf"
 };
 
